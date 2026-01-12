@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>얼굴 형태로보는 인공지능 게임상 테스트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=Spline+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script>
+         tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "dark-bg": "#0f172a", // Slate 900
+                        "dark-card": "#1e293b", // Slate 800
+                        "neon-pink": "#ff00ff",
+                        "neon-cyan": "#00ffff",
+                        "neon-purple": "#d946ef",
+                        "joseon-red": "#be123c",
+                        "joseon-green": "#166534",
+                        "joseon-gold": "#d4af37", // Gold
+                        "joseon-navy": "#111827", // Very dark navy
+                        "primary": "#8b5cf6", // Violet
+                        "secondary": "#ec4899", // Pink
+                    },
+                    fontFamily: {
+                        "sans": ["Noto Sans KR", "Spline Sans", "sans-serif"],
+                        "serif": ["Noto Serif KR", "serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        'neon-glow': '0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(0, 255, 255, 0.3)',
+                        'neon-pink-glow': '0 0 10px rgba(255, 0, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3)',
+                        'gold-glow': '0 0 10px rgba(212, 175, 55, 0.3), 0 0 20px rgba(212, 175, 55, 0.1)',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'shimmer': 'shimmer 1.5s infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        shimmer: {
+                            '0%': { transform: 'translateX(-100%)' },
+                            '100%': { transform: 'translateX(100%)' }
+                        }
+                    },
+                    backgroundImage: {
+                        'brush-stroke': "url('https://www.transparenttextures.com/patterns/black-scales.png')", // Placeholder for texture idea, implementing via css mask or similar visual
+                    }
+                },
+            },
+        }
+    </script>
+    <style>body {
+    font-family: "Noto Sans KR", sans-serif;
+    background-color: #0f172a;
+    color: #f1f5f9
+    }
+h1, h2, h3, h4 {
+    font-family: "Noto Serif KR", serif
+    }
+::-webkit-scrollbar {
+    width: 8px
+    }
+::-webkit-scrollbar-track {
+    background: #1e293b
+    }
+::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px
+    }
+.text-neon-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(to right, #0ff, #f0f);
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.3)
+    }
+.brush-border-bottom {
+    position: relative
+    }
+.brush-border-bottom::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #0ff, transparent);
+    mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 5 Q 50 10 100 5 T 200 5' stroke='black' stroke-width='8' fill='none' stroke-dasharray='5,5'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 5 Q 50 10 100 5 T 200 5' stroke='black' stroke-width='8' fill='none' stroke-dasharray='5,5'/%3E%3C/svg%3E");
+    mask-size: cover;
+    opacity: 0.7;
+    margin-top: 1rem
+    }
+.traditional-pattern {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDubsx4YDKiNkO002Zev6o7nfgPdBkGXVbSvIg-rLdsRVicNETfBcKdZxAQoq2Im-4iV53FjszT4J0PKlagbiPWN5qAUmgTT08Q46cs5xSt2okC6HhmOIBP6HtxH8u_PGOrxO2ee5chpSD_ihfLhHCcz3VzNxR_E42RKa7IyfeVpkeCzvk7LwNVjK-u6xVC8Z5iNTPbxAJqyiqeDZ3X9rsWcj9nqM1Lyzn98uAb-hIh07Nt7P5de0CYB-QKftTvn4NHGoRrsy7NjWQ);
+    opacity: 0.05
+    }
+.pattern-clouds {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuC480cFLMZ-bnrieN2j2wEiykusqmnC4KrnisTzjkqwIBmjCjM0oBHMTlrTCDEwuYYSFuoCka9evvj9tUZm7UcFKi1EJSTqrifVwgQMValMwq1Ef182hp1dNoXgSKj1URdKTS5t2ajMwx1xC2VTA9WTlHY6zMiEXnq9qx7qBTNe7OYGzTHmDUQ88Zr1HsOxRQTVQaJI1E8oLEO8T89ZRTDU-v1Fl8uKq9JdbnE1sztmzA75DAdDutASmmmrwteN9p2zr0JVEF5j3sM);}
+.double-border-box {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    background-color: #111827
+    }
+.double-border-box::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    border: 1px solid rgba(212, 175, 55, 0.3);pointer-events: none
+    }
+.chart-bar-container {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative
+    }
+.chart-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    position: relative
+    }
+.chart-bar-fill::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.8)
+    }</style>
+</head>
+<body class="min-h-screen flex flex-col font-sans overflow-x-hidden selection:bg-neon-pink selection:text-white bg-dark-bg">
+<div class="w-full border-b border-white/10 bg-dark-bg/80 backdrop-blur-md sticky top-0 z-50">
+<div class="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
+<div class="flex items-center gap-3">
+<div class="relative group">
+<div class="absolute -inset-1 bg-gradient-to-r from-neon-cyan to-neon-pink rounded-full blur opacity-75 group-hover:opacity-100 transition duration-200"></div>
+<div class="relative flex items-center justify-center w-10 h-10 rounded-full bg-dark-bg border border-white/20 text-white">
+<span class="material-symbols-outlined text-[24px] text-neon-cyan">face_retouching_natural</span>
+</div>
+</div>
+<h2 class="text-xl font-bold tracking-tight text-white font-serif">관상<span class="text-neon-pink text-sm align-top">AI</span></h2>
+</div>
+</div>
+</div>
+<main class="flex-grow flex flex-col items-center w-full relative">
+<div class="absolute inset-0 pattern-clouds opacity-[0.03] pointer-events-none z-0 fixed"></div>
+<section class="w-full max-w-7xl px-6 py-12 md:py-16 flex flex-col items-center relative z-10" id="hero-section">
+<div class="absolute top-0 left-1/4 w-[500px] h-[500px] bg-neon-purple/20 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
+<div class="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-neon-cyan/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+<div class="text-center mb-12 relative z-10">
+<div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-neon-cyan/30 bg-neon-cyan/5 text-neon-cyan text-xs font-bold mb-6">
+<span class="material-symbols-outlined text-[16px]">temple_buddhist</span>
+<span>조선시대 관상학 × 최신 AI 기술</span>
+</div>
+<h1 class="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-tight mb-6 text-white drop-shadow-lg">
+                얼굴 <span class="relative inline-block text-neon-pink px-2 mx-1 border-b-4 border-neon-cyan transform -skew-x-6">형태</span>로 보는<br class="hidden md:block"/>
+<span class="text-neon-gradient">인공지능 게임상 테스트</span>
+</h1>
+<p class="text-lg text-slate-400 max-w-2xl mx-auto font-sans font-light">
+                내 얼굴에는 어떤 게이머의 피가 흐르고 있을까요?<br/>
+<span class="text-white font-medium">조선의 명리학</span>과 <span class="text-white font-medium">현대 컴퓨터 게임</span>의 만남. 지금 확인하세요.
+            </p>
+</div>
+<div class="w-full max-w-5xl relative z-20 mt-4">
+<div class="absolute -inset-0.5 bg-gradient-to-r from-neon-pink via-purple-500 to-neon-cyan rounded-[2.5rem] blur opacity-60 animate-pulse-slow"></div>
+<div class="relative bg-dark-card rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row shadow-2xl min-h-[500px] border border-white/5">
+<div class="w-full md:w-1/2 relative min-h-[300px] bg-slate-900 overflow-hidden group">
+<div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&amp;w=2671&amp;auto=format&amp;fit=crop')] bg-cover bg-center transition-transform duration-700 group-hover:scale-110 opacity-70"></div>
+<div class="absolute inset-0 bg-slate-900/60 mix-blend-multiply"></div>
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/korean-pattern.png')] opacity-30 mix-blend-overlay"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
+<div class="absolute top-6 left-6 right-6 flex justify-between items-start z-20">
+<div class="p-2 bg-black/50 backdrop-blur rounded-lg border border-white/20 animate-float" style="animation-delay: 0s;">
+<span class="material-symbols-outlined text-neon-cyan">sports_esports</span>
+</div>
+<div class="p-2 bg-black/50 backdrop-blur rounded-lg border border-white/20 animate-float" style="animation-delay: 1.5s;">
+<span class="material-symbols-outlined text-neon-pink">history_edu</span>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 p-8 w-full z-10">
+<div class="inline-block bg-neon-cyan/20 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold text-neon-cyan mb-2 border border-neon-cyan/50">
+                            GAME FACE PHYSIOGNOMY
+                        </div>
+<h3 class="text-3xl font-black text-white font-serif mb-2 leading-tight">
+                            준비 되셨나요?
+                        </h3>
+<p class="text-slate-300 font-medium text-sm leading-relaxed mb-6">
+                            관상학적으로 게임 실력을 분석합니다.<br/>
+                            당신의 얼굴이 곧 당신의 티어(Tier)입니다.
+                        </p>
+</div>
+</div>
+<div class="w-full md:w-1/2 bg-slate-800 p-8 md:p-12 flex flex-col justify-center items-center text-center relative border-l border-white/5">
+<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
+<div class="relative z-10 w-full" id="upload-area-content">
+<div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-neon-cyan to-blue-500 p-[2px] shadow-lg shadow-cyan-500/30 animate-float">
+<div class="w-full h-full bg-slate-800 rounded-[14px] flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-transparent bg-clip-text bg-gradient-to-br from-cyan-500 to-blue-600">add_a_photo</span>
+</div>
+</div>
+<h3 class="text-2xl font-bold text-white mb-2 font-serif">사진 업로드하기</h3>
+<p class="text-slate-400 text-sm mb-8 font-sans">
+                            파일을 여기로 드래그하거나 클릭하여<br/>관상을 분석할 사진을 선택해주세요.
+                        </p>
+<label class="group relative flex w-full h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-600 bg-slate-700/30 hover:bg-slate-700/60 hover:border-neon-cyan transition-all duration-300">
+<div class="flex flex-col items-center justify-center pb-6 pt-5">
+<span class="material-symbols-outlined text-slate-500 group-hover:text-neon-cyan mb-2 transition-colors text-3xl">cloud_upload</span>
+<p class="mb-1 text-sm text-slate-400 font-bold group-hover:text-slate-200">클릭하여 업로드</p>
+<p class="text-xs text-slate-500">JPG, PNG, WEBP</p>
+</div>
+<input class="hidden" id="dropzone-file" type="file"/>
+</label>
+<div class="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span>사진은 서버에 저장되지 않습니다.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-10 mb-10 flex justify-center w-full relative z-30">
+            <button class="group relative flex min-w-[280px] md:min-w-[360px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-20 px-10 bg-dark-bg border-2 border-neon-cyan transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 text-white text-2xl font-bold shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:shadow-[0_0_50px_rgba(0,255,255,0.6)] z-20" id="start-test-btn">
+                <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-neon-cyan/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></span>
+                <span class="material-symbols-outlined text-3xl mr-3 text-neon-cyan">play_circle</span>
+                <span class="truncate relative z-10 mr-2 font-serif">테스트 시작하기</span>
+                <span class="material-symbols-outlined text-2xl group-hover:translate-x-2 transition-transform relative z-10 text-neon-cyan">arrow_forward_ios</span>
+            </button>
+<div class="absolute -bottom-20 left-0 right-0 flex flex-col items-center justify-center animate-bounce-slow opacity-60">
+<span class="text-[10px] uppercase tracking-widest text-neon-cyan mb-1">Scroll Down</span>
+<span class="material-symbols-outlined text-neon-cyan">keyboard_double_arrow_down</span>
+</div>
+</section>
+<div class="h-0 w-full"></div>
+<section class="w-full max-w-7xl px-6 pb-24 pt-4 relative z-10">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-px h-12 bg-gradient-to-b from-neon-cyan/50 to-transparent"></div>
+<div class="text-center mb-12">
+<h2 class="text-2xl md:text-3xl font-bold text-white mb-3">
+<span class="text-neon-cyan border-b-2 border-neon-cyan/50 pb-1">AI 관상가</span>가 분석하는 포인트
+            </h2>
+<p class="text-slate-400 text-sm mt-4">조선의 지혜와 미래의 기술로 당신을 꿰뚫어 봅니다</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="group relative flex flex-col p-8 rounded-[2rem] bg-dark-card border border-white/10 hover:border-neon-cyan/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-neon-glow">
+<div class="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-white/20 rounded-tl-lg group-hover:border-neon-cyan transition-colors"></div>
+<div class="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-white/20 rounded-tr-lg group-hover:border-neon-cyan transition-colors"></div>
+<div class="absolute inset-0 bg-gradient-to-br from-neon-cyan/5 to-transparent rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-14 h-14 rounded-xl bg-slate-700/50 flex items-center justify-center mb-6 text-neon-cyan shadow-inner ring-1 ring-white/10 group-hover:bg-neon-cyan group-hover:text-black transition-colors">
+<span class="material-symbols-outlined text-[30px]">face</span>
+</div>
+<h3 class="text-lg font-bold mb-3 text-white font-serif">용모 파악</h3>
+<p class="text-slate-400 text-sm leading-relaxed">
+                    이마의 넓이와 눈썹의 기세로 타고난 게임 센스와 순발력을 판단합니다.
+                </p>
+</div>
+<div class="group relative flex flex-col p-8 rounded-[2rem] bg-dark-card border border-white/10 hover:border-neon-pink/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-neon-pink-glow">
+<div class="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-white/20 rounded-tl-lg group-hover:border-neon-pink transition-colors"></div>
+<div class="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-white/20 rounded-tr-lg group-hover:border-neon-pink transition-colors"></div>
+<div class="absolute inset-0 bg-gradient-to-br from-neon-pink/5 to-transparent rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-14 h-14 rounded-xl bg-slate-700/50 flex items-center justify-center mb-6 text-neon-pink shadow-inner ring-1 ring-white/10 group-hover:bg-neon-pink group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[30px]">sports_esports</span>
+</div>
+<h3 class="text-lg font-bold mb-3 text-white font-serif">장르 매칭</h3>
+<p class="text-slate-400 text-sm leading-relaxed">
+                    FPS의 날카로움인지, RPG의 끈기인지 당신에게 맞는 장르를 점지해드립니다.
+                </p>
+</div>
+<div class="group relative flex flex-col p-8 rounded-[2rem] bg-dark-card border border-white/10 hover:border-yellow-400/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_15px_rgba(250,204,21,0.3)]">
+<div class="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-white/20 rounded-tl-lg group-hover:border-yellow-400 transition-colors"></div>
+<div class="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-white/20 rounded-tr-lg group-hover:border-yellow-400 transition-colors"></div>
+<div class="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-transparent rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-14 h-14 rounded-xl bg-slate-700/50 flex items-center justify-center mb-6 text-yellow-400 shadow-inner ring-1 ring-white/10 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
+<span class="material-symbols-outlined text-[30px]">psychology</span>
+</div>
+<h3 class="text-lg font-bold mb-3 text-white font-serif">성향 분석</h3>
+<p class="text-slate-400 text-sm leading-relaxed">
+                    공격적인 플레이어인지, 전략적인 리더인지 숨겨진 기질을 찾아냅니다.
+                </p>
+</div>
+<div class="group relative flex flex-col p-8 rounded-[2rem] bg-dark-card border border-white/10 hover:border-purple-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+<div class="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-white/20 rounded-tl-lg group-hover:border-purple-500 transition-colors"></div>
+<div class="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-white/20 rounded-tr-lg group-hover:border-purple-500 transition-colors"></div>
+<div class="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-14 h-14 rounded-xl bg-slate-700/50 flex items-center justify-center mb-6 text-purple-400 shadow-inner ring-1 ring-white/10 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[30px]">auto_graph</span>
+</div>
+<h3 class="text-lg font-bold mb-3 text-white font-serif">TOP 2 조합 분석</h3>
+<p class="text-slate-400 text-sm leading-relaxed">
+                    관상 데이터로 10가지 성향 중 당신의 TOP 2 성향 조합을 도출하여 최적의 게임을 매칭합니다.
+                </p>
+</div>
+</div>
+<div class="mt-16 relative flex flex-col items-center justify-center">
+<div class="absolute -top-10 w-px h-10 bg-gradient-to-b from-transparent to-neon-cyan"></div>
+<div class="mt-4 text-slate-500 text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] animate-bounce">arrow_downward</span>
+<span>결과는 아래에 이어서 표시됩니다</span>
+</div>
+</div>
+</section>
+<div class="w-full h-24 md:h-32 flex items-center justify-center relative z-0">
+<div class="w-px h-full bg-gradient-to-b from-transparent via-neon-cyan/30 to-transparent border-l border-dashed border-slate-700"></div>
+</div>
+<section class="w-full max-w-6xl px-6 pb-32 relative z-10 hidden opacity-0 translate-y-20 transition-all duration-1000 transform" id="result-view">
+<div class="relative bg-dark-card/90 backdrop-blur-xl rounded-[1rem] border-2 border-joseon-gold/20 overflow-hidden shadow-2xl">
+<div class="absolute top-0 right-0 w-[400px] h-[400px] bg-neon-purple/10 blur-[100px] pointer-events-none"></div>
+<div class="absolute bottom-0 left-0 w-[400px] h-[400px] bg-neon-cyan/10 blur-[100px] pointer-events-none"></div>
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/black-scales.png')] opacity-20 pointer-events-none"></div>
+<div class="p-8 md:p-12 lg:p-16 relative z-10">
+<div class="text-center mb-10 brush-border-bottom pb-8">
+<div class="inline-block mb-4">
+<span class="py-1 px-4 rounded-full bg-joseon-navy border border-joseon-gold text-joseon-gold text-xs font-bold tracking-widest flex items-center gap-2 mx-auto shadow-gold-glow">
+<span class="material-symbols-outlined text-[16px]">history_edu</span>
+                            관상 판독서 (觀相判讀書)
+                        </span>
+</div>
+<h2 class="text-4xl md:text-6xl font-black text-white font-serif mb-4 mt-4 tracking-tight">
+<span class="text-slate-400 text-xl md:text-2xl block mb-3 font-sans font-light tracking-normal">당신의 관상 유형</span>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan via-white to-neon-purple drop-shadow-[0_0_10px_rgba(0,255,255,0.5)]">냉철한 전장의 전략가</span>
+</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16 items-center">
+<div class="flex flex-col items-center justify-center gap-6">
+<div class="relative">
+
+<div class="flex items-center justify-center gap-8 relative z-10">
+<div id="top1-logo">
+<div class="flex flex-col items-center gap-3 transform scale-110">
+<div class="w-24 h-24 rounded-2xl bg-joseon-navy border-2 border-neon-cyan flex items-center justify-center text-neon-cyan shadow-[0_0_25px_rgba(0,255,255,0.4)] relative overflow-hidden group">
+<div class="absolute inset-0 bg-neon-cyan/10 group-hover:bg-neon-cyan/20 transition-colors"></div>
+<span class="material-symbols-outlined text-5xl">swords</span>
+<div class="absolute top-1 right-1 w-2 h-2 bg-neon-cyan rounded-full animate-ping"></div>
+</div>
+<span class="text-neon-cyan font-bold text-xl tracking-wide font-serif">담용형<span class="text-sm font-sans font-normal opacity-80 ml-1">(용맹)</span></span>
+</div>
+</div>
+<span class="text-3xl text-slate-600 font-light font-serif">×</span>
+<div id="top2-logo">
+<div class="flex flex-col items-center gap-3 opacity-90">
+<div class="w-20 h-20 rounded-2xl bg-joseon-navy border border-neon-purple flex items-center justify-center text-neon-purple shadow-[0_0_15px_rgba(217,70,239,0.3)] relative overflow-hidden">
+<div class="absolute inset-0 bg-neon-purple/5"></div>
+<span class="material-symbols-outlined text-4xl">psychology</span>
+</div>
+<span class="text-neon-purple font-bold text-lg tracking-wide font-serif">이지형<span class="text-sm font-sans font-normal opacity-80 ml-1">(이성)</span></span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-joseon-navy/80 rounded-xl p-6 border-l-4 border-neon-cyan relative max-w-md w-full mt-4">
+<h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2 font-serif">
+<span class="material-symbols-outlined text-neon-cyan">auto_awesome</span>
+                                관상학적 풀이
+                            </h3>
+<p id = "result-explanation" class="text-slate-300 leading-relaxed text-md font-light">
+                                " 당신은 어떤 위기에도 침착하고 용기있게 맞서며 승리하기 위해 도전합니다.가장 위험한 곳으로 뛰어드는 용기를 가졌으면서도, 일말의 망설임 없이 최선의 수를 계산해내는 명장입니다. 당신에게 쫄리지않는 심장과 순발력이 중요한 FPS와 수싸움과 긴장감을 견뎌야 하는 소울라이크 게임들을 추천합니다"
+                            </p>
+</div>
+</div>
+<div class="w-full bg-slate-900/50 p-8 rounded-2xl border border-white/5 backdrop-blur-sm">
+<h4 class="text-slate-400 text-sm font-bold mb-6 uppercase tracking-wider flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">bar_chart</span>
+                             관상 5대 지표 분석
+                        </h4>
+<div class="space-y-6">
+<div>
+<div class="flex justify-between text-sm mb-2">
+<span class="text-neon-cyan font-bold">담용형 (용맹)</span>
+<span class="text-neon-cyan font-bold">85%</span>
+</div>
+<div class="chart-bar-container">
+<div class="chart-bar-fill bg-gradient-to-r from-cyan-600 to-neon-cyan w-[85%] shadow-[0_0_10px_rgba(0,255,255,0.5)]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm mb-2">
+<span class="text-neon-purple font-bold">이지형 (이성)</span>
+<span class="text-neon-purple font-bold">72%</span>
+</div>
+<div class="chart-bar-container">
+<div class="chart-bar-fill bg-gradient-to-r from-purple-700 to-neon-purple w-[72%] shadow-[0_0_10px_rgba(217,70,239,0.4)]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm mb-2">
+<span class="text-slate-400">승부형 (승부욕)</span>
+<span class="text-slate-500">45%</span>
+</div>
+<div class="chart-bar-container">
+<div class="chart-bar-fill bg-slate-600 w-[45%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm mb-2">
+<span class="text-slate-400">통솔형 (리더십)</span>
+<span class="text-slate-500">30%</span>
+</div>
+<div class="chart-bar-container">
+<div class="chart-bar-fill bg-slate-700 w-[30%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm mb-2">
+<span class="text-slate-400">전심형 (몰입)</span>
+<span class="text-slate-500">20%</span>
+</div>
+<div class="chart-bar-container">
+<div class="chart-bar-fill bg-slate-800 w-[20%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="w-full h-px bg-slate-700 my-12 opacity-50 brush-border-bottom"></div>
+<div class="mb-12">
+<h3 class="text-2xl font-bold text-white mb-8 text-center font-serif flex items-center justify-center gap-4">
+<span class="material-symbols-outlined text-joseon-gold">stars</span>
+<span><span class="text-joseon-gold">당신에게 추천하는</span>게임 </span>
+<span class="material-symbols-outlined text-joseon-gold">stars</span>
+</h3>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="double-border-box group p-6 flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-2 hover:bg-joseon-navy/80 cursor-pointer min-h-[160px]">
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-neon-cyan/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<h4 class="text-xl font-bold text-white mb-2 group-hover:text-neon-cyan transition-colors font-serif relative z-10">배틀그라운드</h4>
+
+<p> 자신만의 영웅을 만들고, 스킬을 선택하고, 동료를 모아 왕국에서 악을 제거하세요. 모든일은 당신의 선택에 달렸습니다.</p>
+<div class="absolute bottom-2 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+<div class="w-12 h-0.5 bg-neon-cyan shadow-[0_0_8px_cyan]"></div>
+</div>
+</div>
+<div class="double-border-box group p-6 flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-2 hover:bg-joseon-navy/80 cursor-pointer min-h-[160px]">
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-neon-purple/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<h4 class="text-xl font-bold text-white group-hover:text-neon-purple transition-colors font-serif relative z-10">스타크래프트</h4>
+<div class="absolute bottom-2 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+<div class="w-12 h-0.5 bg-neon-purple shadow-[0_0_8px_magenta]"></div>
+</div>
+</div>
+<div class="double-border-box group p-6 flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-2 hover:bg-joseon-navy/80 cursor-pointer min-h-[160px]">
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<h4 class="text-xl font-bold text-white group-hover:text-yellow-400 transition-colors font-serif relative z-10">문명</h4>
+<div class="absolute bottom-2 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+<div class="w-12 h-0.5 bg-yellow-400 shadow-[0_0_8px_yellow]"></div>
+</div>
+</div>
+<div class="double-border-box group p-6 flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-2 hover:bg-joseon-navy/80 cursor-pointer min-h-[160px]">
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<h4 class="text-xl font-bold text-white mb-2 group-hover:text-rose-400 transition-colors font-serif relative z-10">엘든링</h4>
+
+<div class="absolute bottom-2 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+<div class="w-12 h-0.5 bg-rose-500 shadow-[0_0_8px_red]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row gap-4 justify-center max-w-2xl mx-auto mb-10">
+
+<button class="flex-1 py-4 bg-transparent border border-white/20 text-white rounded-xl font-bold text-lg hover:bg-white/5 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">share</span>
+                        결과 공유하기
+                    </button>
+</div>
+<div class="max-w-md mx-auto relative group">
+<div class="absolute -inset-1 bg-gradient-to-r from-neon-cyan via-purple-500 to-neon-pink rounded-xl blur opacity-25 group-hover:opacity-75 transition duration-500"></div>
+<button class="relative w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl bg-dark-bg border border-neon-cyan/30 text-neon-cyan font-bold tracking-wide hover:text-white transition-all duration-300 hover:shadow-[inset_0_0_20px_rgba(0,255,255,0.2)]" id="retest-btn">
+<span class="material-symbols-outlined group-hover:rotate-180 transition-transform duration-700 text-xl">refresh</span>
+<span>다시 테스트하기</span>
+<div class="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-neon-cyan to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+       
+<footer class="w-full border-t border-white/10 bg-dark-bg py-12 relative z-10">
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/asfalt-light.png')] opacity-5 pointer-events-none"></div>
+<div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+<div class="flex items-center gap-2 text-slate-500">
+<span class="material-symbols-outlined text-[24px] text-slate-600">sports_esports</span>
+<span class="text-sm font-bold">Game Face Physiognomy © 2026</span>
+</div>
+<div class="flex gap-8">
+<a class="text-slate-500 hover:text-neon-cyan text-sm font-medium transition-colors" href="#">개인정보처리방침</a>
+<a class="text-slate-500 hover:text-neon-cyan text-sm font-medium transition-colors" href="#">이용약관</a>
+<a class="text-slate-500 hover:text-neon-cyan text-sm font-medium transition-colors" href="#">문의하기</a>
+</div>
+</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<script>
+    // 1. 모델 URL
+    const TM_URL = "https://teachablemachine.withgoogle.com/models/XMLHW1Yc5/"; 
+    let model, uploadedImage;
+    // 2. 조합 결과 데이터 (반드시 가나다순으로 키 "A_B" 작성)
+    const resultData = {
+        "담용형(용맹)_이지형(이성)": {
+            title: "뜨거운 심장,차가운 머리,장군의 상",
+            explanation: "당신은 어떤 위기에도 침착하고 용기있게 맞서며 승리하기 위해 도전합니다. 가장 위험한 곳으로 뛰어드는 용기를 가졌으면서도, 일말의 망설임 없이 최선의 수를 계산해내는 명장입니다.무서움에 강하다면 공포게임을,막강한 포스를 가진 보스에 도전하고 싶다면 소울라이크 게임을 추천드려요.",
+            games: [
+                { n: "아웃라스트", d: "기자가 되어 지옥같은 정신병원을 취재하고, 극한의 위험 속에서 끝까지 살아남으세요.", u:"https://store.steampowered.com/app/238320/Outlast" },
+                { n: "에일리언 아이솔레이션", d: "우주선에서 무자비한 에일리언의 위협을 피하고 맡은 임무를 완수하세요.", u:"https://store.steampowered.com/app/214490/Alien_Isolation/" },
+                { n: "이블위딘", d: "쾌함의 극치, 끔찍한 괴물들, 형사인 당신은 그들과 맞서야 합니다.", u:"https://store.steampowered.com/app/268050/The_Evil_Within/" },
+                { n: "데드스페이스", d: "SF와 공포의 결합, 엔지니어가 되어 멸망한 우주의 비밀을 파헤치세요.", u:"https://store.steampowered.com/app/1693980/Dead_Space/" },
+                { n: "엘든링", d: "다크 판타지의 광활한 세계를 탐험하고 힘겹게 승리하여 진정한 전사가 되세요.", u:"https://store.steampowered.com/app/1245620/ELDEN_RING/" },
+                { n: "다크소울3", d: "불꽃이 사라지고 세계가 폐허로 변하여, 더욱 악랄하고 위험해진 적들과 환경 속으로 여행을 떠나십시오.", u:"https://store.steampowered.com/app/374320/DARK_SOULS_III/" },
+                { n: "검은신화,오공", d: "손오공이되어 과거의 전설 속 진실을 밝히기 위해, 위험과 놀라움이 가득한 서유기 세계속으로 여정을 떠나세요 .", u:"https://store.steampowered.com/app/2358720/_/" },
+                { n: "세키로", d: "숨막히는 수싸움 , 특이한 전투방식으로 당신의 기지를 발휘하여 일본 전국시대의 패자가 되세요.", u:"https://store.steampowered.com/app/814380/Sekiro_Shadows_Die_Twice__GOTY_Edition/" }
+            ]
+        },
+        
+        // ... 나머지 8개 조합도 동일한 형식으로 PDF 내용을 복사해 넣으시면 됩니다.
+        "담용형(용맹)_승부형(승부욕)": {
+            title: "떡을 원하는 호랑이상",
+            explanation: "당신은 승리에 절실하여 과감히 도전합니다. 때론 무모한 시도로 인해 큰 손실을 맛보고 분노하며 슬퍼합니다. 반면에 승리를 쟁취하여 누구보다 큰 기쁨을 얻습니다. 게이머들 중 누구보다 극적인 희노애락을 느낍니다. 승리의 도파인이 가장 크다고 평가받는 소울라이크 게임, 실제 상대와 경쟁하는 온라인게임을 추천합니다.",
+            games: [
+                { n: "p의 거짓", d: "다양한 종류의 보스들을 이겨 다양한 승리를 맛보세요. 물론 그러기 쉽지는 않을겁니다.", u:"https://store.steampowered.com/app/1627720/P__Lies_of_P/" },
+                { n: "하데스", d: "우죽은 자들의 신들에게서 벗어나기위해 싸우세요. 탈출에 도달할 때마다 기쁨을 느끼세요.", u:"https://store.steampowered.com/app/1145360/Hades/" },
+                { n: "실크송", d: "위험한 순례를 떠나며 강력한 적들과 맞붙고 고대의 수수께끼를 해결하세요.세상의 꼭대기에서 빛나는 성채로 올라 기쁨을 만끽하세요.", u:"https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/" },
+                { n: "블러드본", d: "극악의 난이도, 쉽게 포기하지 않는다면 계속 도전하여 보스를 쓰러뜨리고 큰 성취감을 얻으세요.", u:"https://www.playstation.com/ko-kr/games/bloodborne/" },
+                { n: "리그 오브 레전드", d: "사실상 멘탈게임, 포기하지 않고 당신의 챔피언으로 승리하고 점수를 얻으세요.", u:"https://www.leagueoflegends.com/ko-kr/" },
+                { n: "피파", d: "축구를 좋아한다면 팀을 만들고 전략을 짜 직접 경기를 뛰며 골을 넣고 승리하세요.", u:"https://fconline.nexon.com/main/index" },
+                { n: "배틀그라운드", d: "배틀로얄의 정수. 줄어드는 환경 속에서 싸워 살아남는 단 한명이 되세요.", u:"https://store.steampowered.com/app/578080/PUBG_BATTLEGROUNDS/" },
+                { n: "아크 레이더스", d: "위험천만한 머신들이 즐비한 지상에서 수색하고,살아남고,승리하세요.", u:"https://store.steampowered.com/app/1808500/ARC_Raiders/" }
+            ]
+        },
+        "담용형(용맹)_통솔형(리더십)": {
+            title: "시대를 늦게 태어난 왕이 될 상 ",
+            explanation: "당신은 인간들을 다스리고 지휘하는 데 능통합니다. 왕이 되지 못하여 아쉬울 수 있습니다. 대신 당신은 게임 속 세상에서 왕이 될 수 있습니다. 오픈월드게임에서 당신만의 플레이로 왕처럼 군림하거나, 진짜 왕이 되어 세상을 다스리는 RTS게임을 해보세요.",
+            games: [
+                { n: "스카이림", d: "높은 자유도,판타지 세계를 탐험하고 용을 잡아 신비한 힘을 얻고 원하는 대로 살아보세요.", u:"https://store.steampowered.com/app/489830/The_Elder_Scrolls_V_Skyrim_Special_Edition/" },
+                { n: "엘든링", d: "틈새의 땅에 도착한 이름도 없는 자가 되어 처음부터 성장하세요. 그리고 엘데의 왕이 되세요.", u:"https://store.steampowered.com/app/1245620/ELDEN_RING/" },
+                { n: "Grand Theft Auto 5", d: "자유의 도시 로스 산토스에서 당신 내면에 있는 어두움을 마음대로 방출하세요.", u:"https://store.steampowered.com/app/3240220/Grand_Theft_Auto_V/" },
+                { n: "마운드 앤 블레이드2", d: "중세시대에서 외교,전략,제작,거래를 하고 직접 전쟁에 뛰어들어 승리하는 영주가 되세요.", u:"https://store.steampowered.com/app/261550/Mount__Blade_II_Bannerlord/" },
+                { n: "크루세이더 킹즈3", d: "섬세하게 고증된 중세시대의 왕이 되어 가문을 통솔하고 왕조를 확장하세요.", u:"https://store.steampowered.com/app/1158310/Crusader_Kings_III/" },
+                { n: "문명5", d: "제 수많은 역사 지도자들과 맞서 영토를 확장하고 역사 속 위대한 제국을 건설하세요.", u:"https://store.steampowered.com/app/289070/Sid_Meiers_Civilization_VI/" },
+                { n: "에이지 오브 엠파이어4", d: "손수천년의 실제 역사가 고증된 세계에서 도시를 건설하고 당신의 개성대로 국가를 운영하세요.", u:"https://store.steampowered.com/app/1466860/Age_of_Empires_IV_Anniversary_Edition/" },
+                { n: "아노", d: "전략적 도시 건설 게임에서 로마 제국의 황제가 되어 운명을 결정하세요. 로마 속주 곳곳에 영향력을 넓히세요.", u:"https://store.steampowered.com/app/3274580/Anno_117_Pax_Romana/?curator_clanid=44446041" }
+            ]
+        },
+        "담용형(용맹)_진심형(몰입)": {
+            title: "용감한 카멜레온 상 ",
+            explanation: "당신은 게임 속 캐릭터가 자신인 것처럼 몰입하여 멋진 일들을 행하려 합니다. 주변의 시대와 환경은 당신을 정말 다채롭게 변화시킵니다. 독립운동가,전사,의로운 도적 등을 말이죠. 게임을 하면 할수록 당신의 경험은 다양해집니다. 영화같은 스토리 중심게임에서 멋진 캐릭터에 몰입해보세요.",
+            games: [
+                { n: "어쌔신 크리드 오디세이", d: "고대 그리스시대, 스파르타 전사가 되어 모험하고 신화 속 괴물들과 싸우세요.", u:"https://store.steampowered.com/app/812140/Assassins_Creed_Odyssey/" },
+                { n: "라스트 오브 어스", d: "감염으로 잔혹해진 생존자로 가득 찬 황폐한 사회에서 중년 아저씨와 소녀의 여정을 함께하세요.", u:"https://store.steampowered.com/app/1888930/The_Last_of_Us_Part_I/" },
+                { n: "콜 오브 듀티", d: "미국 특수부대원이 되어 국가를 위한 불가능할 것 같은 임무들을 완수하세요.", u:"https://store.steampowered.com/app/10180/Call_of_Duty_Modern_Warfare_2_2009/?curator_clanid=42355870" },
+                { n: "용과 같이7", d: "상남자 주인공 이치반이 되어 좋은 동료들과 악당을 물리치거나 뜨거운 드라마를 체험해보세요.", u:"https://store.steampowered.com/app/1235140/_7____International/" },
+                { n: "위쳐3", d: "괴물을 사냥하는 위쳐가 되어 세계를 탐험하고 장대하고 재밌는 여러 스토리에 빠져보세요.", u:"https://store.steampowered.com/app/292030/The_Witcher_3_Wild_Hunt/" },
+                { n: "언차티드", d: "전설의 보물을 찾기위한 여정을 떠나세요. 스릴 넘치는 스토리텔링과 플레이에 몰입은 배가 됩니다.", u:"https://store.steampowered.com/app/1659420/UNCHARTED/" },
+                { n: "툼레이더", d: "매력적인 주인공이 되어 기지를 발휘해 고대 유적들을 탐험하고 수수께끼를 풀어나가세요.", u:"https://store.steampowered.com/app/391220/Rise_of_the_Tomb_Raider/?curator_clanid=35801496" },
+                { n: "마블 스파이더맨2", d: "직접 마스크를 쓰고 거미줄을 날리는 영웅이 되어보세요. 스파이더맨을 좋아한다면 필수입니다.", u:"https://store.steampowered.com/app/2651280/__2/" }
+            ]
+        },
+        "승부형(승부욕)_이지형(이성)": {
+            title: "완전히 도가 튼,도사의 상 ",
+            explanation: "당신은  경쟁에 특화된 인물입니다. 승리하기 위한 방법을 터득해 집요하고 철저하게 상대를 공략합니다. e스포츠 선수로 전향을 고려해 보세요.그러나 조심하세요,승리에 대한 집착과 책임감이 당신을 괴롭힐 수 있어요.게임의 목적은 즐거움 입니다.경쟁하는 여러 게임들 중에서도 pvp게임들을 추천합니다.",
+            games: [
+                { n: "카운터 스트라이크2", d: "전세계 수백만명의 플레이어가 모여 수준높은 FPS 전투를 즐길 수 있습니다.", u:"https://store.steampowered.com/app/730/CounterStrike_2/" },
+                { n: "오버워치", d: "팀 기반 슈팅게임으로 당신의 방식대로 전략을 짜고 영웅을 선택하여 팀원들과 승리하세요.", u:"https://store.steampowered.com/app/2357570/_2/" },
+                { n: "RUST", d: "섬에서 다른 생존자들로부터 살아남으세요. 기지를 설계하고 기술을 연구하고 스스로를 지킬 전략을 세우세요.", u:"https://store.steampowered.com/app/252490/Rust/" },
+                { n: "에이펙스 레전드", d: "최첨단 무기고를 지원받으며 격렬하고 몰입도 높은 멀티플레이어 전투에 참여하세요.", u:"https://store.steampowered.com/app/1172470/Apex/" },
+                { n: "배틀필드", d: "최고의 전면전을 경험하세요. 전차, 전투기, 거대한 병기로 가득한 전쟁에서 가장 치명적인 무기는 여러분의 분대입니다.", u:"https://store.steampowered.com/app/2807960/Battlefield_6/" },
+                { n: "Dota2", d: "몇시간을 하든 새로운 플레이를 경험하는 AOS게임,수백만의 플레이어와 영웅을 선택하여 싸우세요.", u:"https://store.steampowered.com/app/570/Dota_2/" },
+                { n: "호라이즌", d: "세계 최고의 자동차를 타고 생동감 넘치는 멕시코의 대자연을 탐험하며 재미있는 드라이빙 액션을 마음껏 즐겨보세요.", u:"https://store.steampowered.com/app/1551360/Forza_Horizon_5/" },
+                { n: "철권7", d: "격투게임의 정점, 영화같은 연출과 긴장감 넘치는 배틀로 다른 게이머들을 때려보세요.", u:"https://store.steampowered.com/app/389730/TEKKEN_7/" }
+            ]
+        },
+        "이지형(이성)_통솔형(리더십)": {
+            title: "지력몰빵,전략가의 상",
+            explanation: "당신이 내리는 명령은 탁월합니다,망설이지 말고 당신의 생각을 그대로 말하세요 . 순수 게임실력이 부족하다고 실망하지 마세요. 당신의 공부머리를 발휘 할 수 있는 게임들은 널렸습니다. 전략게임 또는 퍼즐/추리게임을 추천합니다.",
+            games: [
+                { n: "토탈 워해머3", d: "여러분이 직접 지휘할 수 있는 일곱 가지 개성적인 종족과 수백 가지의 부대로 자신만의 군단을 꾸려 전투하세요.", u:"https://store.steampowered.com/app/1142710/__3/" },
+                { n: "33 원정대", d: "턴제RPG, 원정대원이 되어 장비와 스킬,캐릭터를 구성해 전략을 짜고 적의 약점을 공략하세요.", u:"https://store.steampowered.com/app/1903340/__33/" },
+                { n: "발더스게이트3", d: "방대한 스토리, 당신의 생각과 선택에 따라 이 게임은 매우 다양한 경험을 선사할 겁니다.", u:"https://store.steampowered.com/app/1086940/Baldurs_Gate_3/" },
+                { n: "slay the spire", d: "독창적인 덱을 만들고, 기이한 적들과 조우하며, 엄청난 힘을 가진 유물을 발견하고, 첨탑을 정복해보세요.", u:"https://store.steampowered.com/app/646570/Slay_the_Spire/" },
+                { n: "portal", d: "거대하고 복잡한 실험실에서 공간과 물리효과를 이해하여 재밌는 퍼즐을 풀고 스토리를 즐기세요.", u:"https://store.steampowered.com/app/400/Portal/" },
+                { n: "Ace attorney trilogy", d: "변호사 나루호도 류이치가 되어 무고한 의뢰인을 위해 재판에 도전하세요. 법정에서 당신의 논리를 펼치세요.", u:"https://store.steampowered.com/app/787480/Phoenix_Wright_Ace_Attorney_Trilogy/" },
+                { n: "Escape Simulatr", d: "점점 더 많아지는, 고도의 상호 작용이 가능한 방탈출 세트를 탐험하세요. 어렵다면 친구와 함께할 수 있어요.", u:"https://store.steampowered.com/app/2879840/__2/" },
+                { n: "Balatro", d: "불법 포커 패로 게임을 하고, 판을 뒤엎는 조커를 발견하고, 아드레날린이 치솟는 강력한 콤보를 만드세요.", u:"https://store.steampowered.com/app/2379780/Balatro/" }
+            ]
+        },
+        "이지형(이성)_진심형(몰입)": {
+            title: "물과 기름, 4차원의 상 ",
+            explanation: "감정적이면서 이성적인 상태가 특이하다고 생각할 수 있습니다. 그러나 때때로 감상적인 몰입상태가 될 때 합리적인 판단을 할 때가 있습니다. 그런 경우가 딱 맞는 게임들이 존재합니다. 플레이어의 선택이 대부분의 스토리에 중요한 영향을 미치는 스토리게임이나 섬세함이 중요한 시뮬레이션 게임을 추천합니다.",
+            games: [
+                { n: "디트로이드 비컴 휴면", d: "여러분을 기계가 인간보다 더 높은 지능을 갖고 있는 근미래로 데려가, 인간과 안드로이드의 운명을 여러분의 손에 쥐어 줍니다.", u:"https://store.steampowered.com/app/1222140/Detroit_Become_Human/" },
+                { n: "워킹데드", d: "좀비세계에서 당신의 선택에 따라 인간의 생사가 갈릴 수 있습니다. 당신의 선택은 누군가가 기억할 것입니다.", u:"https://store.steampowered.com/app/207610/The_Walking_Dead/" },
+                { n: "언틸던", d: "산속의 휴양지가 탈출할 수 없는 악몽으로 변합니다. 공포를 마주하고 동이 틀 때까지 생존할 인물을 결정하세요.", u:"https://store.steampowered.com/app/2172010/Until_Dawn/" },
+                { n: "킹덤컴 딜리버런스", d: "로마 제국시대,부모님의 죽음을 복수하고 침략자들을 몰아내는 것을 도우십시오. 당신의 행동은 사람들에게 영향을 줍니다.", u:"https://store.steampowered.com/app/379430/Kingdom_Come_Deliverance/" },
+                { n: "Stardeo Valley", d: "당신은 할아버지의 오래된 농지를 물려받습니다. 농사 짓는 일이 힐링되겠지만 나름 머리를 바쁘게 쓰셔야 할 겁니다.", u:"https://store.steampowered.com/app/413150/Stardew_Valley/" },
+                { n: "데이브 더 다이버", d: "낮에는 아름다운 바닷속에서 물고기를 사냥하고, 밤에는 초밥집을 운영해 돈을 벌어 보세요.", u:"https://store.steampowered.com/app/1868140/_/" },
+                { n: "유로트럭", d: "요한 화물을 배달하는 트럭 운전사가 되어 유럽을 여행하세요. 인내심,기술,속도를 준수하세요.", u:"https://store.steampowered.com/app/227300/Euro_Truck_Simulator_2/" },
+                { n: "Don't scream together", d: "절대 소리지르지 마세요,이성적으로는 그렇게 다짐하겠지만 쉽지는 않을 겁니다. 친구들과 즐길 수 있어요.", u:"https://store.steampowered.com/app/2692990/DONT_SCREAM_TOGETHER/" }
+            ]
+        },
+        "승부형(승부욕)_통솔형(리더십)": {
+            title: "당근과 채찍,사업가의 상",
+            explanation: "당신의 열정은 당신의 주위 사람들에게 동기를 부여합니다.그러나 너무 욕심을 부리지는 마세요.과도한 명령지시에 부하들은 당신을 악덕 사장으로 볼 겁니다. 당신을 좋은 리더로 훈련시켜 줄 게임들이 있어요. 주로 경영과 관련된 게임들을 해보세요.",
+            games: [
+                { n: "팰월드", d: "드넓은 세계에 서식하는 신비한 생물 팰을 수집하여 전투, 건축, 농업에 투입하거나 공장에서 일을 시켜보세요.", u:"https://store.steampowered.com/app/1623730/Palworld/" },
+                { n: "Escape the Backrooms", d: "팀원들과 협동하여 불쾌한 백룸을 탈출하세요. 팀원이 갑자기 사라져도 리더십을 발휘해 다시 구출하세요.", u:"https://store.steampowered.com/app/1943950/Escape_the_Backrooms/" },
+                { n: "Football Maneger", d: "축구감독이 되어 전술,선수단,이적시장,훈련등을 총체적으로 관리하여 실제 감독과 유사한 경험으로 리더십을 배우세요.", u:"https://store.steampowered.com/app/3551340/Football_Manager_26/" },
+                { n: "Factorio", d: "아이템을 생산하기 위해 자동화 공장을 만드세요.당신의 상상력으로 설계,연구,생산하여 산업 강궁을 이루세요.", u:"https://store.steampowered.com/app/427520/Factorio/" },
+                { n: "Dispatch", d: "불완전한 슈퍼히어로들로 이루어진 팀을 관리해 보세요. 도시의 문제와 사내정치에 유연하게 대처하세요.", u:"https://store.steampowered.com/app/2592160/Dispatch/" },
+                { n: "림월드", d: "난파선을 탈출한 세 명의 생존자들과 심리, 생태, 전투, 날씨, 기후, 외교,인간 관계, 예술, 의학, 무역을 관리하며 살아나가세요.", u:"https://store.steampowered.com/app/294100/RimWorld/" },
+                { n: "롤러코스터 타이쿤", d: "놀이동산을 건축하고 운영하세요. 재정, 상점, 서비스, 직원을 체계적으로 관리하고 방문객을 불러모으세요.", u:"https://store.steampowered.com/app/1368820/RollerCoaster_Tycoon_3_Complete_Edition/" },
+                { n: "쥬라기월드", d: "건물을 건설하고 ,과학자를 고용하고, 관람객의 수요와 요구를 확인하여 적절하게 공원을 조성하고 공룡을 관리하세요.", u:"https://store.steampowered.com/app/2958130/___3/" }
+            ]
+        },
+        "승부형(승부욕)_진심형(몰입)": {
+            title: "타고난 싸움꾼,아수라의 상",
+            explanation: "캐릭터의 성장이 곧 당신의 성장입니다. 단기적으로 계속되는 승리들은 당신의 몰입에 도움이 될 수 있어요. 어려운 게임들은 당신의 분노를 유발할 것이니 당연히 피하는 것이 좋겠죠 현란한 연출과 재밌는 전투방식을 플레이 할 수 있는 게임을 추천합니다.",
+            games: [
+                { n: "갓 오브 워", d: "전쟁의 신 크레토스, 북유럽 신과 괴물과 끊임없이 싸우고 죽이세요.그리고 아들에게도 생존하는 방식을 가르치세요.", u:"https://store.steampowered.com/app/1593500/God_of_War/" },
+                { n: "사이버 펑크", d: "어두운 미래의 도시 메갈로폴리스에서 신체개조를 통한 독특한 전투와 다양한 퀘스트를 수행하세요.", u:"https://store.steampowered.com/app/1091500/Cyberpunk_2077/" },
+                { n: "둠 이터널", d: "슬레이어가 되어 지옥의 군대를 물리치세요. 압도적인 무기로 궁극의 속도와 힘을 체험해 보세요.", u:"https://store.steampowered.com/app/782330/DOOM_Eternal/" },
+                { n: "Left 4 Dead 2", d: "당신을 향해 달려오는 수많은 좀비들을 해치고 목적지에 도달하세요. 눈앞에 뵈는건 좀비들 뿐입니다.", u:"https://store.steampowered.com/app/550/Left_4_Dead_2/" },
+                { n: "고스트 오브 쓰시마", d: "몽골의 쓰시마 섬 침략을 막기 위해 훌륭한 검술로 적들을 처치하세요. 당신의 일격은 예술이 됩니다.", u:"https://store.steampowered.com/app/2215430/Ghost_of_Tsushima/" },
+                { n: "진 삼국무쌍", d: "끝없는 대군세에 맞서 전장에서 적을 휩쓰세요. 아군들과 진격하여 무력을 행사하여 전투의 상쾌함을 느끼세요.", u:"https://store.steampowered.com/app/2384580/_ORIGINS/" },
+                { n: "Space Marin 2", d: "치명적인 능력과 강력한 무기로 끝없이 몰려오는 타이라니드 무리를 말살하여 박진감 있는 타격감을 즐기세요.", u:"https://store.steampowered.com/app/2183900/Warhammer_40000_Space_Marine_2/" },
+                { n: "몬스터 헌터 월드", d: "웅장한 대자연에서  당신의 본능대로 흥미롭고 멋진 몬스터들을 사냥하는 사냥꾼이 되어 보세요.", u:"https://store.steampowered.com/app/582010/Monster_Hunter_World/" }
+            ]
+        },
+        "진심형(몰입)_통솔형(리더십)": {
+            title: "자아도취,군주의 상",
+            explanation: "한 무리 또는 집단의 리더가 되어 카리스마를 발휘하는 자신에 심취해 있습니다.당신의 소신있는 결단으로 긍정적인 결과가 생기면 당신은 보람을 느낍니다.막중한 책임감이 따르지만 그래도 견딜 수 있습니다.집단에게 위기가 닥치거나 문제를 해결해야 하는 게임은 당신이 가장 필요합니다.",
+            games: [
+                { n: "심즈4", d: "아무런 제약 없는 가상 세계에서 심들을 창조하고 지배하는 전능한 힘을 즐기세요. 강력한 권력을 자유롭게 휘두르세요.", u:"https://store.steampowered.com/app/1222670/The_Sims_4/" },
+                { n: "프로스토 펑크", d: "영하50도의 추위, 지구의 마지막 지도자가 되어 시민과 사회를 관리하고 생존을 위해 결정하세요.", u:"https://store.steampowered.com/app/323190/_/" },
+                { n: "Lethal Company", d: "팀을 꾸려 행성을 탐험하고 괴물을 피해 자원을 확보하세요. 팀원들의 비명에도 침착하게 대응하세요.", u:"https://store.steampowered.com/app/1966720/Lethal_Company/" },
+                { n: "Stellaris", d: "은하 제국을 건설하세요. 당신의 윤리관,철학에 따라 제국의 방향이 달라집니다. 다양한 종족과 긴박한 외교에 대처하세요.", u:"https://store.steampowered.com/app/281990/Stellaris/" },
+                { n: "Cult of the Lamb", d: "충성스러운 삼림 추종자들의 공동체를 만들고 당신의 말씀을 전파하여 하나의 진정한 종교가 되십시오.", u:"https://store.steampowered.com/app/1313140/Cult_of_the_Lamb/" },
+                { n: "Misery", d: "핵 재앙이 덮친 지역에서 동료들과 생존하세요. 괴물과 강도의 변칙적인 공격에 침착하게 대응하고 명령하세요.", u:"https://store.steampowered.com/app/2119830/MISERY/" },
+                { n: "Mass Effect", d: "사령관이 되어 혼란에 빠진 우주 속에서 엘리트 정찰 부대를 이끄세요. 인류에게 직면한 대위기를 해결하세요.", u:"https://store.steampowered.com/app/1328670/Mass_Effect_Legendary_Edition/" },
+                { n: "드래곤 에이지 인퀴지션", d: " 자신만의 영웅을 만들고, 스킬을 선택하고, 동료를 모아 왕국에서 악을 제거하세요. 모든일은 당신의 선택에 달렸습니다.", u:"https://store.steampowered.com/app/1222690/_/" }
+            ]
+        }
+    };
+
+   
+
+   async function init() {
+    model = await tmImage.load(
+        TM_URL + "model.json",
+        TM_URL + "metadata.json"
+    );
+    console.log("TM model loaded");
+}
+init();
+
+    // 이미지 업로드 핸들러
+    document.getElementById("dropzone-file").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const uploadArea = document.getElementById("upload-area-content");
+         uploadArea.classList.add("flex", "flex-col", "items-center");
+        uploadArea.innerHTML = `
+        <img id="preview-img"
+       src="${ev.target.result}"
+       class="w-64 h-64 object-cover rounded-xl border-4 border-neon-cyan shadow-xl">
+        <p class="mt-4 text-white font-bold">사진이 인식되었습니다!</p>
+        `;
+        uploadedImage = document.getElementById("preview-img");
+    };
+    reader.readAsDataURL(file);
+});
+
+    document.getElementById('start-test-btn').addEventListener('click', async function() {
+    if (!uploadedImage) return alert("이미지를 먼저 업로드해주세요!");
+
+    const uploadContent = document.getElementById('upload-area-content');
+    // 로딩 표시
+    // 1. [로딩 시작] 원형 로더 대신 'AI HUD 스캐너' 디자인으로 교체
+    uploadContent.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full min-h-[300px] relative overflow-hidden">
+            <div class="absolute inset-0 opacity-10 pointer-events-none" 
+                 style="background-image: radial-gradient(#00ffff 1px, transparent 1px); background-size: 20px 20px;"></div>
+            
+            <div class="relative w-48 h-48 border border-neon-cyan/30 rounded-lg flex items-center justify-center">
+                <div class="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-neon-cyan"></div>
+                <div class="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-neon-cyan"></div>
+                <div class="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-neon-cyan"></div>
+                <div class="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-neon-cyan"></div>
+                
+                <div class="absolute w-[90%] h-[2px] bg-neon-cyan shadow-[0_0_15px_#00ffff] z-10 animate-scan"></div>
+                
+                <span class="material-symbols-outlined text-neon-cyan text-6xl animate-pulse opacity-50">
+                    psychology
+                </span>
+            </div>
+
+            <div class="mt-8 text-center">
+                <h3 class="text-xl font-bold text-white mb-2 tracking-[0.3em] uppercase">
+                    Neural Scanning...
+                </h3>
+                <div class="flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 bg-neon-cyan rounded-full animate-bounce" style="animation-delay: 0s"></span>
+                    <span class="w-2 h-2 bg-neon-cyan rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                    <span class="w-2 h-2 bg-neon-cyan rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+                </div>
+                <p class="mt-4 text-slate-500 text-xs font-mono uppercase tracking-widest">
+                    Data sequence: <span id="data-seq">0%</span>
+                </p>
+            </div>
+        </div>
+        
+        <style>
+            @keyframes scan {
+                0%, 100% { top: 10%; opacity: 0.5; }
+                50% { top: 90%; opacity: 1; }
+            }
+            .animate-scan {
+                position: absolute;
+                animation: scan 2s ease-in-out infinite;
+            }
+        </style>
+    `;
+
+    // (선택 사항) 데이터 퍼센트가 올라가는 효과 추가
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += Math.floor(Math.random() * 15) + 5;
+        const seqEl = document.getElementById('data-seq');
+        if (seqEl) seqEl.innerText = (progress > 100 ? 100 : progress) + '%';
+        if (progress >= 100) clearInterval(progressInterval);
+    }, 200);
+
+  
+       const prediction = await model.predict(uploadedImage);
+        
+        prediction.sort((a, b) => b.probability - a.probability);
+        renderTop2TypeLogos(prediction);
+        const top1 = prediction[0].className;
+        const top2 = prediction[1].className;
+        const key = [top1, top2].sort().join("_");
+
+    const data = resultData[key] || Object.values(resultData)[0]; 
+
+        const resultView = document.getElementById("result-view");
+    resultView.classList.remove("hidden", "opacity-0", "translate-y-20");
+
+    /* ===== 메인 타이틀 ===== */
+    resultView.querySelector(".text-transparent").innerText = data.title;
+    document.getElementById("result-explanation").innerText = data.explanation;
+
+        // 5대 지표 (기존 game.html의 성공 로직 적용)
+        const chartRows = resultView.querySelectorAll(".space-y-6 > div");
+         prediction.slice(0, chartRows.length).forEach((pred, i) => {
+        const percent = Math.round(pred.probability * 100) + "%";
+        chartRows[i].querySelector("span:first-child").innerText = pred.className;
+        chartRows[i].querySelector("span:last-child").innerText = percent;
+        chartRows[i].querySelector(".chart-bar-fill").style.width = percent;
+    });
+
+        const gameGrid = resultView.querySelector(
+        ".grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-4"
+    );
+    gameGrid.innerHTML = "";
+
+    data.games.forEach(game => {
+    gameGrid.innerHTML += `
+        <a href="${game.u}" target="_blank" class="block group/card">
+            <div class="double-border-box p-6 text-center hover:-translate-y-2 transition-all duration-300 cursor-pointer bg-slate-900/50 group-hover/card:border-neon-cyan shadow-lg">
+                <h4 class="text-xl font-bold text-white mb-2 group-hover/card:text-neon-cyan transition-colors">${game.n}</h4>
+                <p class="text-slate-400 text-sm mb-4">${game.d}</p>
+                
+                <div class="flex items-center justify-center gap-1 text-neon-cyan/50 group-hover/card:text-neon-cyan transition-all">
+                    <span class="text-[10px] font-mono tracking-widest uppercase">Visit Site</span>
+                    <span class="material-symbols-outlined text-sm">open_in_new</span>
+                </div>
+            </div>
+        </a>
+    `;
+});
+        
+        setTimeout(() => {
+        // [분석 완료!] 업로드 영역 디자인 변경
+        uploadContent.innerHTML = `
+    <div class="flex flex-col items-center justify-center h-full min-h-[300px] relative">
+        <div class="absolute inset-0 opacity-20 pointer-events-none" 
+             style="background-image: linear-gradient(#00ffff 0.5px, transparent 0.5px), linear-gradient(90deg, #00ffff 0.5px, transparent 0.5px); background-size: 30px 30px;"></div>
+        
+        <div class="relative w-48 h-48 border-2 border-neon-cyan shadow-[0_0_30px_rgba(0,255,255,0.2)] rounded-lg flex items-center justify-center bg-neon-cyan/5">
+            <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-neon-cyan"></div>
+            <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-neon-cyan"></div>
+            <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-neon-cyan"></div>
+            <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-neon-cyan"></div>
+            
+            <div class="flex flex-col items-center animate-bounce-short">
+                <span class="material-symbols-outlined text-neon-cyan text-7xl mb-2">
+                    verified
+                </span>
+                <span class="text-[10px] font-mono text-neon-cyan tracking-[0.2em] font-bold">MATCH FOUND</span>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <h3 class="text-2xl font-black text-white mb-2 tracking-[0.4em] uppercase shadow-neon">
+                분석 완료!
+            </h3>
+            <p class="text-neon-cyan text-xs font-mono uppercase tracking-[0.1em]">
+                AI-Face Sequence: [ SUCCESS ]
+            </p>
+            
+            <div class="mt-6 flex flex-col items-center gap-1 opacity-60">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">View Report</span>
+                <span class="material-symbols-outlined text-neon-cyan animate-bounce">expand_more</span>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .shadow-neon {
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        }
+        @keyframes bounce-short {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .animate-bounce-short {
+            animation: bounce-short 2s ease-in-out infinite;
+        }
+    </style>
+`;
+setTimeout(() => {
+            const resultView = document.getElementById('result-view');
+            resultView.classList.remove('hidden');
+            void resultView.offsetWidth; 
+            resultView.classList.remove('opacity-0', 'translate-y-20');
+            
+            // 결과창으로 부드럽게 이동
+            resultView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 1000);
+    }, 2500);
+        
+        document.addEventListener("click", e => {
+  if (e.target.closest("#retest-btn")) {
+    location.href = location.pathname;
+  }
+});
+});
+const TYPE_LOGO_TEMPLATES = {
+  "담용형(용맹)": `
+    <div class="flex flex-col items-center gap-3 transform scale-110">
+<div class="w-24 h-24 rounded-2xl bg-joseon-navy border-2 border-neon-cyan flex items-center justify-center text-neon-cyan shadow-[0_0_25px_rgba(0,255,255,0.4)] relative overflow-hidden group">
+<div class="absolute inset-0 bg-neon-cyan/5 group-hover:bg-neon-cyan/20 transition-colors"></div>
+<span class="material-symbols-outlined text-5xl">swords</span>
+<div class="absolute top-1 right-1 w-2 h-2 bg-neon-cyan rounded-full animate-ping"></div>
+</div>
+<span class="text-neon-cyan font-bold text-xl tracking-wide font-serif">담용형<span class="text-sm font-sans font-normal opacity-80 ml-1">(용맹)</span></span>
+</div>
+  `,
+  "이지형(이성)": `
+   <div class="flex flex-col items-center gap-3 transform scale-110">
+<div class="w-24 h-24 rounded-2xl bg-joseon-navy border-2 border-neon-purple flex items-center justify-center text-neon-purple shadow-[0_0_25px_rgba(217,70,239,0.4)] relative overflow-hidden">
+<div class="absolute inset-0 bg-neon-purple/5 group-hover:bg-neon-purple/20 transition-colors"></div>
+<span class="material-symbols-outlined text-5xl">psychology</span>
+<div class="absolute top-1 right-1 w-2 h-2 bg-neon-purple rounded-full animate-ping"></div>
+</div>
+<span class="text-neon-purple font-bold text-xl tracking-wide font-serif">이지형<span class="text-sm font-sans font-normal opacity-80 ml-1">(이성)</span></span>
+</div>
+  `,
+  "승부형(승부욕)" : `
+  <div class="flex flex-col items-center gap-3 transform scale-110">
+<div class="w-24 h-24 rounded-2xl bg-joseon-navy border-2 border-joseon-red flex items-center justify-center text-joseon-red shadow-[0_0_25px_rgba(222,27,27,0.4)] relative overflow-hidden group">
+<div class="absolute inset-0 bg-joseon-red/5 group-hover:bg-joseon-red/20 transition-colors"></div>
+<span class="material-symbols-outlined text-5xl">flag</span>
+<div class="absolute top-1 right-1 w-2 h-2 bg-joseon-red rounded-full animate-ping"></div>
+</div>
+<span class="text-joseon-red font-bold text-xl tracking-wide font-serif">승부형<span class="text-sm font-sans font-normal opacity-80 ml-1 ">(승부욕)</span>
+</div>
+ `,
+ "통솔형(리더십)" : `
+ <div class="flex flex-col items-center gap-3 transform scale-110">
+<div class="w-24 h-24 rounded-2xl bg-joseon-navy border-2 border-joseon-green flex items-center justify-center text-joseon-green shadow-[0_0_25px_rgba(61,159,20,0.4)] relative overflow-hidden group">
+<div class="absolute inset-0 bg-joseon-green/5 group-hover:bg-joseon-green/20 transition-colors"></div>
+<span class="material-symbols-outlined text-5xl">crown</span>
+<div class="absolute top-1 right-1 w-2 h-2 bg-joseon-green rounded-full animate-ping"></div>
+</div>
+<span class="text-joseon-green font-bold text-xl tracking-wide font-serif">통솔형<span class="text-sm font-sans font-normal opacity-80 ml-1">(리더십)</span>
+</div>
+`,
+"진심형(몰입)" : `
+    <div class="flex flex-col items-center gap-3 transform scale-110">
+<div class="w-24 h-24 rounded-2xl bg-joseon-navy border-2 border-joseon-gold flex items-center justify-center text-joseon-gold shadow-[0_0_25px_rgba(231,215,64,0.4)] relative overflow-hidden group">
+<div class="absolute inset-0 bg-joseon-gold/5 group-hover:bg-joseon-gold/20 transition-colors"></div>
+<span class="material-symbols-outlined text-5xl">cyclone</span>
+<div class="absolute top-1 right-1 w-2 h-2 bg-joseon-gold rounded-full animate-ping"></div>
+</div>
+<span class="text-joseon-gold font-bold text-xl tracking-wide font-serif">진심형<span class="text-sm font-sans font-normal opacity-80 ml-1">(몰입)</span></span>
+</div>
+`
+};
+function getTop2(predictions) {
+  return [...predictions]
+    .sort((a, b) => b.probability - a.probability)
+    .slice(0, 2);
+}
+function renderTop2TypeLogos(predictions) {
+  const [first, second] = getTop2(predictions);
+
+  const top1 = document.getElementById("top1-logo");
+  const top2 = document.getElementById("top2-logo");
+
+  console.log("Top1:", first.className);
+  console.log("Top2:", second.className);
+
+  top1.innerHTML = TYPE_LOGO_TEMPLATES[first.className];
+  top2.innerHTML = TYPE_LOGO_TEMPLATES[second.className];
+}
+
+
+</script>
+</body>
+</html>
